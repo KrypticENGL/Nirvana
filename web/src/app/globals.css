@@ -5,13 +5,46 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/*
+ * Nirvana design system — "listening room after dark".
+ * Charcoal room, graphite hardware, one ember light. Artwork carries the colour; chrome stays quiet.
+ * Every value below is a token: components use the Tailwind names (bg-surface-2, text-ember, shadow-lift…),
+ * never raw hex.
+ */
 @theme inline {
+  /* Type: Instrument Sans for UI, Martian Mono for readouts (times, counts, frequencies), Doto for LCDs */
+  --font-sans: var(--font-instrument-sans);
+  --font-heading: var(--font-instrument-sans);
+  --font-mono: var(--font-martian-mono);
+  --font-dot: var(--font-doto);
+
+  /* Type scale (1.25 ratio from 14px body). Each step carries its own leading and tracking. */
+  --text-caption: 0.75rem;
+  --text-caption--line-height: 1.35;
+  --text-body: 0.875rem;
+  --text-body--line-height: 1.5;
+  --text-title: 1.125rem;
+  --text-title--line-height: 1.3;
+  --text-title--letter-spacing: -0.01em;
+  --text-heading: 1.5rem;
+  --text-heading--line-height: 1.15;
+  --text-heading--letter-spacing: -0.02em;
+  --text-display: clamp(2rem, 1.4rem + 2.4vw, 3.25rem);
+  --text-display--line-height: 1.02;
+  --text-display--letter-spacing: -0.035em;
+
+  /* Surfaces, darkest to lightest: well (recessed) < background < surface-1 < surface-2 < surface-3 (hover) */
+  --color-well: var(--well);
+  --color-surface-1: var(--surface-1);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-hairline: var(--hairline);
+  --color-ember: var(--primary);
+  --color-glow: var(--glow);
+  --color-dim: var(--dim);
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-dot: var(--font-doto);
-  --font-heading: var(--font-geist-sans);
   --color-panel: var(--panel);
   --color-panel-foreground: var(--panel-foreground);
   --color-sidebar-ring: var(--sidebar-ring);
@@ -43,6 +76,8 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+
+  /* Radii: controls 10px, rows 14px, cards 18px, panels 22px, artwork 14px (square art reads as a record sleeve) */
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -50,118 +85,294 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+
+  /* Elevation: a 1px top highlight (lit from above, like brushed metal) plus a soft drop */
+  --shadow-rest: inset 0 1px 0 rgb(255 255 255 / 0.04), 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-lift: inset 0 1px 0 rgb(255 255 255 / 0.05), 0 8px 24px -8px rgb(0 0 0 / 0.6), 0 2px 4px rgb(0 0 0 / 0.3);
+  --shadow-float: inset 0 1px 0 rgb(255 255 255 / 0.06), 0 24px 48px -12px rgb(0 0 0 / 0.75), 0 4px 12px rgb(0 0 0 / 0.4);
+  --shadow-recess: inset 0 2px 4px rgb(0 0 0 / 0.5), inset 0 0 0 1px rgb(0 0 0 / 0.3), 0 1px 0 rgb(255 255 255 / 0.04);
+  --shadow-ember: 0 6px 20px -4px rgb(255 113 56 / 0.45);
+
+  /* Motion: quick for feedback, slower for things that move across the screen */
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+  --duration-fast: 140ms;
+  --duration-base: 240ms;
+  --duration-slow: 420ms;
+
+  /* Like-button confirmation: one quick overshoot */
+  --animate-pop: pop 380ms var(--ease-out-soft);
+  @keyframes pop {
+    40% {
+      scale: 1.35;
+    }
+  }
+  /* LCD text arriving: a brief backlight flicker as a new station lands */
+  --animate-lcd-in: lcd-in 420ms ease-out;
+  @keyframes lcd-in {
+    0% {
+      opacity: 0;
+    }
+    30% {
+      opacity: 0.8;
+    }
+    45% {
+      opacity: 0.35;
+    }
+    100% {
+      opacity: 1;
+    }
+  }
+  /* Panels coming into view when switching tabs */
+  --animate-page-in: page-in var(--duration-slow) var(--ease-out-soft);
+  @keyframes page-in {
+    from {
+      opacity: 0;
+      translate: 0 8px;
+    }
+  }
+  --animate-shimmer: shimmer 1.6s ease-in-out infinite;
+  @keyframes shimmer {
+    from {
+      translate: -100% 0;
+    }
+    to {
+      translate: 100% 0;
+    }
+  }
+
+  /* Level-meter bars beside the playing track */
+  --animate-meter: meter 0.9s var(--ease-out-soft) infinite alternate;
+  @keyframes meter {
+    from {
+      transform: scaleY(0.25);
+    }
+    to {
+      transform: scaleY(1);
+    }
+  }
 }
 
+/* The app is dark-only; `.dark` is set on <html> so shadcn/Clerk dark variants apply too. */
 :root {
-  /* Nirvana neumorphic palette: light grey surface, slate radio panel, orange accent */
-  --background: #e9e9ed;
-  --foreground: #1f2230;
-  --panel: #4a5573;
-  --panel-foreground: #e9ecf5;
-  --neu-light: #ffffff;
-  --neu-dark: #c5c5cc;
-  --card: #e9e9ed;
-  --card-foreground: #1f2230;
-  --popover: #e9e9ed;
-  --popover-foreground: #1f2230;
-  --primary: #f26b1d;
-  --primary-foreground: #ffffff;
-  --secondary: #e1e1e6;
-  --secondary-foreground: #1f2230;
-  --muted: #e1e1e6;
-  --muted-foreground: #8a8d99;
-  --accent: #dededf;
-  --accent-foreground: #1f2230;
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: #d6d6dc;
-  --input: #d6d6dc;
-  --ring: #f26b1d;
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
+  color-scheme: dark;
   --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
-}
 
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --background: #111318;
+  --surface-1: #191d24;
+  --surface-2: #222833;
+  --surface-3: #2b3240;
+  --well: #0c0e12;
+  --hairline: rgb(255 255 255 / 0.07);
+
+  --foreground: #f4f2ef;
+  --muted-foreground: #969ba6;
+  --dim: #646a76; /* disabled and decorative only — below body-text contrast */
+
+  --primary: #ff7138;
+  --primary-foreground: #16110e; /* dark ink on ember: 7.4:1, white would be 2.9:1 */
+  --glow: #e8a078;
+
+  /* shadcn semantic aliases, mapped onto the scale above */
+  --card: var(--surface-1);
+  --card-foreground: var(--foreground);
+  --popover: var(--surface-2);
+  --popover-foreground: var(--foreground);
+  --secondary: var(--surface-2);
+  --secondary-foreground: var(--foreground);
+  --muted: var(--surface-2);
+  --accent: var(--surface-3);
+  --accent-foreground: var(--foreground);
+  --destructive: #f0564a;
+  --border: var(--hairline);
+  --input: rgb(255 255 255 / 0.1);
+  --ring: var(--primary);
+
+  /* Legacy "panel" (the old slate radio/now-playing card) is now the elevated graphite surface */
+  --panel: var(--surface-2);
+  --panel-foreground: var(--foreground);
+
+  --chart-1: #ff7138;
+  --chart-2: #e8a078;
+  --chart-3: #969ba6;
+  --chart-4: #646a76;
+  --chart-5: #2b3240;
+  --sidebar: var(--surface-1);
+  --sidebar-foreground: var(--foreground);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: var(--surface-3);
+  --sidebar-accent-foreground: var(--foreground);
+  --sidebar-border: var(--hairline);
+  --sidebar-ring: var(--primary);
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
-  body {
-    @apply bg-background text-foreground;
-  }
   html {
     @apply font-sans;
+    font-feature-settings: "ss01", "cv11";
+  }
+  body {
+    @apply bg-background text-foreground;
+    /* Ambient room light: a warm ember spill top-left, cool slate bottom-right. Fixed so it doesn't scroll. */
+    background-image:
+      radial-gradient(60rem 40rem at -10% -15%, rgb(255 113 56 / 0.07), transparent 60%),
+      radial-gradient(50rem 40rem at 110% 115%, rgb(80 98 130 / 0.1), transparent 60%);
+    background-attachment: fixed;
+  }
+  ::selection {
+    background: rgb(255 113 56 / 0.35);
+  }
+  :focus-visible {
+    outline-offset: 2px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
   }
 }
 
-/* Raised and pressed neumorphic surfaces; use with a matching bg (background or panel) */
+/* ---------- Surfaces: background + edge + shadow in one class ---------- */
+@utility surface-1 {
+  background-color: var(--surface-1);
+  box-shadow: var(--shadow-rest), 0 0 0 1px var(--hairline);
+}
+@utility surface-2 {
+  background-color: var(--surface-2);
+  box-shadow: var(--shadow-lift), 0 0 0 1px var(--hairline);
+}
+/* Popovers, menus, the floating now-playing deck */
+@utility surface-float {
+  background-color: var(--surface-2);
+  box-shadow: var(--shadow-float), 0 0 0 1px rgb(255 255 255 / 0.09);
+}
+/* Recessed well for inputs, meters and selected toggles — a slot cut into the hardware */
+@utility well {
+  background-color: var(--well);
+  box-shadow: var(--shadow-recess);
+}
+
+/* Loading placeholder: a soft highlight sweeping across (transform only, so it stays on the compositor) */
+@utility skeleton {
+  position: relative;
+  overflow: hidden;
+  background-color: var(--surface-2);
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.05), transparent);
+    animation: var(--animate-shimmer);
+  }
+}
+
+/* Glow around the cover of whatever is playing right now */
+@utility playing-glow {
+  box-shadow:
+    0 0 0 1px rgb(255 113 56 / 0.55),
+    0 10px 36px -8px rgb(255 113 56 / 0.5);
+}
+
+/* Small numeric readouts: times, counts, Hz, dB */
+@utility readout {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Hover/press feedback for interactive rows and tiles */
+@utility interactive {
+  transition:
+    background-color var(--duration-fast) var(--ease-out-soft),
+    color var(--duration-fast) var(--ease-out-soft),
+    box-shadow var(--duration-base) var(--ease-out-soft),
+    transform var(--duration-fast) var(--ease-out-soft);
+  &:hover {
+    background-color: rgb(255 255 255 / 0.04);
+  }
+  &:active {
+    transform: scale(0.985);
+  }
+}
+
+/* ---------- Legacy neumorphic names, re-pointed at the new system ----------
+ * Existing screens still use these. They now render as dark surfaces instead of light extrusions,
+ * so nothing breaks before each screen is redesigned. New code should use surface-1/2, well, surface-float.
+ */
 @utility neu {
-  box-shadow: 8px 8px 16px var(--neu-dark), -8px -8px 16px var(--neu-light);
+  background-color: var(--surface-1);
+  box-shadow: var(--shadow-rest), 0 0 0 1px var(--hairline);
 }
 @utility neu-inset {
-  box-shadow: inset 6px 6px 12px var(--neu-dark), inset -6px -6px 12px var(--neu-light);
+  background-color: var(--well);
+  box-shadow: var(--shadow-recess);
 }
-/* Scroll list on the slate panel: thin themed scrollbar + top/bottom shadows that show only when more content is hidden */
+@utility neu-panel {
+  box-shadow: var(--shadow-lift), 0 0 0 1px var(--hairline);
+}
+
+/* Scroll list on a panel: thin scrollbar + top/bottom fades that show only when more content is hidden */
 @utility panel-scroll {
   --scroll-bg: var(--panel);
   scrollbar-width: thin;
-  scrollbar-color: rgb(255 255 255 / 0.25) transparent;
+  scrollbar-color: rgb(255 255 255 / 0.18) transparent;
   background:
     linear-gradient(var(--scroll-bg) 30%, transparent) top / 100% 40px no-repeat local,
     linear-gradient(transparent, var(--scroll-bg) 70%) bottom / 100% 40px no-repeat local,
-    radial-gradient(farthest-side at 50% 0, rgb(0 0 0 / 0.2), transparent) top / 100% 12px no-repeat scroll,
-    radial-gradient(farthest-side at 50% 100%, rgb(0 0 0 / 0.2), transparent) bottom / 100% 12px no-repeat scroll;
+    radial-gradient(farthest-side at 50% 0, rgb(0 0 0 / 0.45), transparent) top / 100% 12px no-repeat scroll,
+    radial-gradient(farthest-side at 50% 100%, rgb(0 0 0 / 0.45), transparent) bottom / 100% 12px no-repeat scroll;
   background-color: var(--scroll-bg);
 }
-/* Same scrollbar treatment for lists on the light surface (no edge shadows: horizontal rows would get them wrong) */
 @utility surface-scroll {
   scrollbar-width: thin;
-  scrollbar-color: rgb(0 0 0 / 0.18) transparent;
+  scrollbar-color: rgb(255 255 255 / 0.14) transparent;
 }
-@utility neu-panel {
-  box-shadow: 10px 10px 24px rgb(0 0 0 / 0.25), -6px -6px 16px rgb(255 255 255 / 0.6);
+
+/* ---------- Radio receiver ---------- */
+/* Brushed graphite faceplate with a navy cast; fine horizontal grain, lit edge on top */
+@utility faceplate {
+  background:
+    repeating-linear-gradient(0deg, rgb(255 255 255 / 0.014) 0 1px, transparent 1px 3px),
+    linear-gradient(180deg, #252c3a, #1a1f2a 55%, #161a23);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.08),
+    inset 0 -1px 0 rgb(0 0 0 / 0.4),
+    var(--shadow-float),
+    0 0 0 1px rgb(255 255 255 / 0.05);
+}
+/* Backlit cream LCD: warm centre glow, scanlines, recessed glass edge */
+@utility lcd {
+  color: #33261a;
+  background:
+    repeating-linear-gradient(0deg, rgb(60 40 20 / 0.07) 0 1px, transparent 1px 3px),
+    radial-gradient(120% 140% at 50% 40%, #efe4cb, #d9caa8 70%, #c7b690);
+  box-shadow:
+    inset 0 2px 6px rgb(40 25 10 / 0.45),
+    inset 0 0 0 1px rgb(40 25 10 / 0.35),
+    0 0 0 4px #0c0e12,
+    0 0 0 5px rgb(255 255 255 / 0.06),
+    0 0 40px -8px rgb(239 200 140 / 0.35);
+  text-shadow: 0 0 6px rgb(255 160 80 / 0.25);
+}
+/* Small indicator lamp; add data-on to light it */
+@utility led {
+  display: inline-block;
+  width: 0.4375rem;
+  height: 0.4375rem;
+  border-radius: 9999px;
+  background: #3a2a22;
+  box-shadow: inset 0 1px 1px rgb(0 0 0 / 0.6);
+  transition: background-color var(--duration-base), box-shadow var(--duration-base);
+  &[data-on] {
+    background: var(--primary);
+    box-shadow: 0 0 6px 1px rgb(255 113 56 / 0.7), 0 0 14px rgb(255 113 56 / 0.35);
+  }
 }

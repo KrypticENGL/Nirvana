@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { SignInButton } from "@clerk/nextjs";
 import { Heart, ListMusic, Play, Plus, Trash2, X } from "lucide-react";
 import { useLibrary } from "@/components/library-context";
 import { TrackRow } from "@/components/music-player";
-import { NowPlaying, usePlayer, type Track } from "@/components/player";
+import { usePlayer, type Track } from "@/components/player";
 
 const LIKED = "liked";
 const songs = (n: number) => `${n} ${n === 1 ? "song" : "songs"}`;
@@ -17,6 +17,11 @@ export function Library() {
   const [newName, setNewName] = useState("");
 
   const playlist = lib.playlists.find((p) => p.id === selected);
+  // A deleted playlist falls back to Liked Songs.
+  const tracks = playlist?.tracks ?? lib.likes;
+  // The dock's Play starts this list when nothing is loaded.
+  const { offer } = player;
+  useEffect(() => offer(tracks), [offer, tracks]);
 
   if (!lib.signedIn)
     return (
@@ -34,9 +39,7 @@ export function Library() {
       </div>
     );
 
-  // A deleted playlist falls back to Liked Songs.
   const showingLiked = !playlist;
-  const tracks = showingLiked ? lib.likes : playlist.tracks;
   const title = showingLiked ? "Liked Songs" : playlist.name;
 
   const remove = (t: Track) => playlist && lib.removeFromPlaylist(playlist.id, t.id);
@@ -104,14 +107,16 @@ export function Library() {
           <input
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
-            placeholder="New playlist"
+            placeholder="New Playlist?"
             aria-label="New playlist name"
             maxLength={100}
             className="neu-inset min-w-0 flex-1 rounded-full bg-transparent px-4 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-primary"
           />
+          {/* Grey and inactive until a name is typed, then orange and clickable */}
           <button
             aria-label="Create playlist"
-            className="grid size-9 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground"
+            disabled={!newName.trim()}
+            className="grid size-9 shrink-0 cursor-pointer place-items-center rounded-full bg-primary text-primary-foreground transition-colors disabled:cursor-default disabled:bg-muted-foreground/40"
           >
             <Plus className="size-4" />
           </button>
@@ -166,7 +171,6 @@ export function Library() {
             ))}
           </ul>
         </section>
-        <NowPlaying fallback={tracks} />
       </div>
     </div>
   );

@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { AnimatePresence, motion } from "motion/react";
+import { Pause, Play } from "lucide-react";
 import { getAnalyser } from "@/lib/audio";
 
 const BARS = 28;
@@ -22,7 +24,9 @@ export function Visualizer({ active, className = "" }: { active: boolean; classN
       const w = el.clientWidth;
       const h = el.clientHeight;
       if (!w || !h) return; // hidden tab (display:none); the ResizeObserver redraws once shown
-      if (el.width !== w * dpr) [el.width, el.height] = [w * dpr, h * dpr];
+      // Rounded: canvas sizes are integers, so fractional DPRs (e.g. 1.25) would otherwise reallocate every frame
+      const [cw, ch] = [Math.round(w * dpr), Math.round(h * dpr)];
+      if (el.width !== cw || el.height !== ch) [el.width, el.height] = [cw, ch];
       g.setTransform(dpr, 0, 0, dpr, 0, 0);
       g.clearRect(0, 0, w, h);
 
@@ -62,4 +66,33 @@ export function Visualizer({ active, className = "" }: { active: boolean; classN
   }, [active]);
 
   return <canvas ref={canvas} aria-hidden className={`block w-full text-primary ${className}`} />;
+}
+
+/** Three bouncing bars: marks the track or station that is audibly playing. */
+export function Meter() {
+  return (
+    <span aria-hidden className="inline-flex h-3 items-end gap-[2px]">
+      {[0, 0.25, 0.5].map((d) => (
+        <span key={d} className="h-full w-[3px] origin-bottom animate-meter rounded-full bg-primary" style={{ animationDelay: `-${d}s` }} />
+      ))}
+    </span>
+  );
+}
+
+/** Play/pause glyph that swaps with a quick scale-and-fade instead of a hard cut. */
+export function PlayGlyph({ playing }: { playing: boolean }) {
+  return (
+    <AnimatePresence mode="popLayout" initial={false}>
+      <motion.span
+        key={playing ? "pause" : "play"}
+        initial={{ scale: 0.5, opacity: 0, rotate: -30 }}
+        animate={{ scale: 1, opacity: 1, rotate: 0 }}
+        exit={{ scale: 0.5, opacity: 0, rotate: 30 }}
+        transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+        className="grid place-items-center"
+      >
+        {playing ? <Pause fill="currentColor" /> : <Play fill="currentColor" className="translate-x-px" />}
+      </motion.span>
+    </AnimatePresence>
+  );
 }

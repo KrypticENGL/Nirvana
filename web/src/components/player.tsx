@@ -1,24 +1,60 @@
 "use client";
 
-import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
-import { Pause, Play, SkipBack, SkipForward, Volume1, Volume2, VolumeX } from "lucide-react";
-import { Slider } from "@/components/ui/slider";
-import { Visualizer } from "@/components/visualizer";
-import { LikeButton } from "@/components/track-actions";
-import { attachEq, formatTime, pauseOtherAudio } from "@/lib/audio";
+import { createContext, useCallback, useContext, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { attachEq, pauseOtherAudio } from "@/lib/audio";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+const RECENT_KEY = "nirvana:recent";
+const RECENT_MAX = 20;
+const NO_TRACKS: Track[] = [];
+
+// Play history lives in localStorage; parsed once per change so the snapshot stays referentially stable.
+let recentRaw: string | null = null;
+let recentCache = NO_TRACKS;
+const recentListeners = new Set<() => void>();
+function readRecent() {
+  let raw: string | null = null;
+  try {
+    raw = localStorage.getItem(RECENT_KEY);
+  } catch {} // storage blocked: no history
+  if (raw !== recentRaw) {
+    recentRaw = raw;
+    try {
+      const v = JSON.parse(raw ?? "[]");
+      recentCache = Array.isArray(v) ? v.slice(0, RECENT_MAX) : NO_TRACKS;
+    } catch {
+      recentCache = NO_TRACKS;
+    }
+  }
+  return recentCache;
+}
+function subscribeRecent(fn: () => void) {
+  recentListeners.add(fn);
+  return () => recentListeners.delete(fn);
+}
 
 export type Track = { id: string; title: string; artist: string; duration: number; artwork: string | null };
 
 export function Artwork({ track, className = "" }: { track: Track; className?: string }) {
   // Remember which URL failed (not a boolean) so the now-playing card recovers when the track changes.
   const [broken, setBroken] = useState<string | null>(null);
+  // Fades in once decoded, so covers don't pop in row by row; keyed by URL so a track change fades again.
+  const [loaded, setLoaded] = useState<string | null>(null);
   return track.artwork && broken !== track.artwork ? (
     // eslint-disable-next-line @next/next/no-img-element -- remote Audius CDN art; next/image would need per-host config
-    <img src={track.artwork} alt="" onError={() => setBroken(track.artwork)} className={`object-cover ${className}`} />
+    <img
+      src={track.artwork}
+      alt=""
+      decoding="async"
+      onLoad={() => setLoaded(track.artwork)}
+      onError={() => setBroken(track.artwork)}
+      // Hidden only until loaded, so a caller's own opacity (blurred backdrops) still applies afterwards.
+      data-loading={loaded !== track.artwork || undefined}
+      className={`object-cover transition-[opacity,scale] duration-(--duration-slow) ease-(--ease-out-soft) data-loading:opacity-0 ${className}`}
+    />
   ) : (
-    <div className={`bg-gradient-to-br from-primary to-panel ${className}`} />
+    // Missing art: an ember-lit sleeve rather than a flat block, so the grid keeps its rhythm
+    <div className={`bg-[radial-gradient(circle_at_30%_25%,var(--glow),var(--primary)_35%,var(--surface-2)_85%)] ${className}`} />
   );
 }
 
@@ -39,6 +75,15 @@ type Player = {
   seek: (s: number) => void;
   changeVolume: (v: number) => void;
   setMuted: (m: boolean) => void;
+  /** The play queue and the position of `current` in it. */
+  queue: Track[];
+  index: number;
+  /** Pages register the list Play should start when nothing is loaded (last caller wins). */
+  offer: (list: Track[]) => void;
+  /** Tracks actually started on this browser, newest first. */
+  recent: Track[];
+  /** Append to the queue (or start it when nothing is loaded). */
+  addToQueue: (t: Track) => void;
 };
 
 const PlayerContext = createContext<Player | null>(null);
@@ -54,7 +99,18 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [failed, setFailed] = useState(false);
   const [volume, setVolume] = useState(0.8);
   const [muted, setMuted] = useState(false);
+  const recent = useSyncExternalStore(subscribeRecent, readRecent, () => NO_TRACKS);
   const current = queue[index];
+  const fallback = useRef<Track[]>([]);
+  const offer = useCallback((list: Track[]) => void (fallback.current = list), []);
+
+  function remember(t: Track) {
+    const next = [t, ...readRecent().filter((x) => x.id !== t.id)].slice(0, RECENT_MAX);
+    try {
+      localStorage.setItem(RECENT_KEY, JSON.stringify(next));
+    } catch {} // storage full or blocked: history just isn't kept
+    recentListeners.forEach((fn) => fn());
+  }
 
   useEffect(() => {
     audio.current!.volume = volume;
@@ -68,13 +124,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setTime(0);
     setFailed(false);
     setDuration(list[i].duration);
+    remember(list[i]);
     el.src = `${API}/api/music/stream/${list[i].id}`;
     el.play().catch(() => {});
   }
 
-  function toggle(fallback: Track[] = []) {
+  function toggle(list: Track[] = fallback.current) {
     const el = audio.current!;
-    if (!current) return void (fallback.length && start(fallback, 0));
+    if (!current) return void (list.length && start(list, 0));
     if (el.paused) el.play().catch(() => {});
     else el.pause();
   }
@@ -113,6 +170,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       setMuted(false);
     },
     setMuted,
+    queue,
+    index,
+    offer,
+    recent,
+    addToQueue: (t) => {
+      if (!current) return start([t], 0);
+      if (!queue.some((x) => x.id === t.id)) setQueue([...queue, t]);
+    },
   };
 
   return (
@@ -136,88 +201,5 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         }}
       />
     </PlayerContext.Provider>
-  );
-}
-
-/** Compact now-playing card, bottom-right like the design; `fallback` is what Play starts when idle. */
-export function NowPlaying({ fallback = [] }: { fallback?: Track[] }) {
-  const p = usePlayer();
-  const VolumeIcon = p.muted || p.volume === 0 ? VolumeX : p.volume < 0.5 ? Volume1 : Volume2;
-
-  return (
-    <section
-      className="neu-panel flex w-80 shrink-0 flex-col gap-3 self-end rounded-3xl bg-panel px-5 py-4 text-panel-foreground"
-      aria-label="Now playing"
-    >
-      <Visualizer active={p.playing} className="h-7" />
-      <div className="flex items-center gap-3">
-        {p.current ? (
-          <Artwork track={p.current} className="size-12 shrink-0 rounded-full" />
-        ) : (
-          <div className="size-12 shrink-0 rounded-full bg-white/10" />
-        )}
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold">{p.current?.title ?? "Nothing playing"}</p>
-          <p className="truncate text-xs opacity-60">
-            {p.failed ? "Track unavailable" : (p.current?.artist ?? "Pick a track")}
-          </p>
-        </div>
-        {p.current && <LikeButton track={p.current} className="text-panel-foreground" />}
-        <button
-          onClick={() => p.step(-1)}
-          aria-label="Previous"
-          disabled={!p.current}
-          className="opacity-80 hover:opacity-100 disabled:opacity-30"
-        >
-          <SkipBack className="size-4" />
-        </button>
-        <button
-          onClick={() => p.toggle(fallback)}
-          aria-label={p.playing ? "Pause" : "Play"}
-          className="grid size-10 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground shadow-[0_4px_14px_rgb(242_107_29/0.5)] focus-visible:outline-2 focus-visible:outline-white"
-        >
-          {p.playing ? <Pause className="size-4" /> : <Play className="size-4" />}
-        </button>
-        <button
-          onClick={() => p.step(1)}
-          aria-label="Next"
-          disabled={!p.current}
-          className="opacity-80 hover:opacity-100 disabled:opacity-30"
-        >
-          <SkipForward className="size-4" />
-        </button>
-      </div>
-      <div className="flex items-center gap-3 text-xs tabular-nums">
-        <span className="w-8 opacity-60">{formatTime(p.time)}</span>
-        <Slider
-          aria-label="Seek"
-          value={[p.time]}
-          max={p.duration || 1}
-          disabled={!p.current}
-          onValueChange={(v) => p.seek(Array.isArray(v) ? v[0] : v)}
-        />
-        <span className="w-8 text-right opacity-60">{formatTime(p.duration)}</span>
-      </div>
-      {/* Volume: click the icon to mute, drag/arrow keys, or scroll the wheel anywhere on the row */}
-      <div className="flex items-center gap-3" onWheel={(e) => p.changeVolume(p.volume - Math.sign(e.deltaY) * 0.05)}>
-        <button
-          onClick={() => p.setMuted(!p.muted)}
-          aria-label={p.muted ? "Unmute" : "Mute"}
-          className="opacity-80 hover:opacity-100"
-        >
-          <VolumeIcon className="size-4" />
-        </button>
-        <Slider
-          aria-label="Volume"
-          value={[p.muted ? 0 : p.volume]}
-          max={1}
-          step={0.01}
-          onValueChange={(v) => p.changeVolume(Array.isArray(v) ? v[0] : v)}
-        />
-        <span className="w-8 text-right text-xs tabular-nums opacity-60">
-          {Math.round((p.muted ? 0 : p.volume) * 100)}
-        </span>
-      </div>
-    </section>
   );
 }

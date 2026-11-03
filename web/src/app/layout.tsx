@@ -1,16 +1,17 @@
 import type { Metadata } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
 import { shadcn } from "@clerk/ui/themes";
-import { Doto, Geist, Geist_Mono } from "next/font/google";
+import { Doto, Instrument_Sans, Martian_Mono } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const instrumentSans = Instrument_Sans({
+  variable: "--font-instrument-sans",
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+// Readouts only (times, counts, Hz/dB): a wide, instrument-panel mono.
+const martianMono = Martian_Mono({
+  variable: "--font-martian-mono",
   subsets: ["latin"],
 });
 
@@ -42,7 +43,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} ${doto.variable} h-full antialiased`}>
+    <html lang="en" className={`dark ${instrumentSans.variable} ${martianMono.variable} ${doto.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">
         <ClerkProvider appearance={{ theme: shadcn, elements: compactAuth }}>{children}</ClerkProvider>
       </body>

@@ -8,16 +8,21 @@ import type { Track } from "@/components/player";
 export function LikeButton({ track, className = "" }: { track: Track; className?: string }) {
   const lib = useLibrary();
   const liked = lib.isLiked(track.id);
+  const [pop, setPop] = useState(false);
   return (
     <button
-      onClick={() => lib.toggleLike(track)}
+      onClick={() => {
+        if (!liked && lib.signedIn) setPop(true); // celebrate the like, not the unlike
+        lib.toggleLike(track);
+      }}
+      onAnimationEnd={() => setPop(false)}
       aria-label={liked ? `Unlike ${track.title}` : `Like ${track.title}`}
       aria-pressed={liked}
-      className={`grid size-8 shrink-0 place-items-center rounded-full transition-colors hover:text-primary focus-visible:outline-2 focus-visible:outline-primary ${
+      className={`grid size-8 shrink-0 place-items-center rounded-full transition-[color,opacity,scale] duration-(--duration-fast) hover:text-primary focus-visible:outline-2 focus-visible:outline-primary active:scale-90 ${
         liked ? "text-primary" : "opacity-60 hover:opacity-100"
       } ${className}`}
     >
-      <Heart className="size-4" fill={liked ? "currentColor" : "none"} />
+      <Heart className={`size-4 ${pop ? "animate-pop" : ""}`} fill={liked ? "currentColor" : "none"} />
     </button>
   );
 }
@@ -45,7 +50,7 @@ export function AddToPlaylist({ track }: { track: Track }) {
         aria-label={`Add ${track.title} to a playlist`}
         style={{ anchorName: anchor } as React.CSSProperties}
         onClick={() => setAdded(null)}
-        className="grid size-8 shrink-0 place-items-center rounded-full opacity-60 transition-colors hover:text-primary hover:opacity-100 focus-visible:outline-2 focus-visible:outline-primary"
+        className="grid size-8 shrink-0 place-items-center rounded-full opacity-60 transition-[color,opacity,scale] duration-(--duration-fast) hover:text-primary hover:opacity-100 focus-visible:outline-2 focus-visible:outline-primary active:scale-90"
       >
         <ListPlus className="size-4" />
       </button>
@@ -61,7 +66,7 @@ export function AddToPlaylist({ track }: { track: Track }) {
             right: "anchor(right)",
           } as React.CSSProperties
         }
-        className="neu m-0 mt-2 w-56 rounded-2xl bg-background p-2 text-sm text-foreground"
+        className="surface-float m-0 mt-2 w-56 rounded-2xl p-2 text-sm text-foreground"
       >
         <p className="px-2 py-1 text-xs font-semibold text-muted-foreground">Add to playlist</p>
         <ul className="surface-scroll max-h-48 overflow-y-auto">
@@ -69,7 +74,7 @@ export function AddToPlaylist({ track }: { track: Track }) {
             <li key={p.id}>
               <button
                 onClick={() => add(p.id)}
-                className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-black/5"
+                className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-white/[0.06]"
               >
                 <span className="flex-1 truncate">{p.name}</span>
                 {added === p.id && <Check className="size-4 text-primary" />}
